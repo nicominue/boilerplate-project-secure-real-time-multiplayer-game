@@ -1,32 +1,114 @@
-<!DOCTYPE html>
+<!-- public/index.html -->
+<!doctype html>
 <html>
-  <head>
-    <title>Secure Real-Time Multiplayer Game</title>
-    <meta
-      name="description"
-      content="An example for the fCC InfoSec Secure Real-Time Multiplayer Game project"
-    />
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="../public/style.css" type="text/css" />
-    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
-  </head>
-  <body>
-    <header>
-      <h1>Secure Real Time Multiplayer Game</h1>
-    </header>
-    <hr style="margin: 25px" />
-    <div class="container">
-      <canvas 
-        ref="game"
-        id="game-window" 
-        width="640" 
-        height="480"
-      >
-      </canvas>
-    </div>
-  </body>
-  <script src="../public/game.mjs" type="module"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Secure Multiplayer</title>
+</head>
+<body>
+  <canvas id="game" width="800" height="600"></canvas>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module">
+    import Player from './js/Player.mjs';
+    import Collectible from './js/Collectible.mjs';
+    const socket = io();
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    let me = null;
+    const otherPlayers = {};
+    const collectibles = {};
+
+    // initial join
+    socket.emit('playerJoin', { x: 50, y: 50 });
+
+    socket.on('worldState', (state) => {
+      state.players.forEach(p => {
+        if (p.id === socket.id) {
+          me = new Player(p.id, p.x, p.y, p.score);
+        } else {
+          otherPlayers[p.id] = new Player(p.id, p.x, p.y, p.score);
+        }
+      });
+      state.collectibles.forEach(c => collectibles[c.id] = new Collectible(c.id, c.x, c.y, c.value));
+      draw();
+    });
+
+    socket.on('playerJoined', p => {
+      otherPlayers[p.id] = new Player(p.id, p.x, p.y, p.score);
+    });
+
+    socket.on('playerMoved', data => {
+      if (data.id === socket.id) {
+        if (me) { me.x = data.x; me.y = data.y; me.score = data.score; }
+      } else {
+        if (!otherPlayers[data.id]) otherPlayers[data.id] = new Player(data.id, data.x, data.y, data.score);
+        otherPlayers[data.id].x = data.x;
+        otherPlayers[data.id].y = data.y;
+        otherPlayers[data.id].score = data.score;
+      }
+      draw();
+    });
+
+    socket.on('playerLeft', ({ id }) => {
+      delete otherPlayers[id];
+      draw();
+    });
+
+    socket.on('collectibleSpawned', c => {
+      collectibles[c.id] = new Collectible(c.id, c.x, c.y, c.value);
+      draw();
+    });
+
+    socket.on('collected', ({ collectorId, collectibleId, newScore }) => {
+      delete collectibles[collectibleId];
+      if (collectorId === socket.id && me) me.score = newScore;
+      if (otherPlayers[collectorId]) otherPlayers[collectorId].score = newScore;
+      draw();
+    });
+
+    // keyboard controls
+    window.addEventListener('keydown', (e) => {
+      if (!me) return;
+      const amount = 5;
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        socket.emit('move', { direction: 'up', amount });
+      } else if (e.key === 'ArrowDown' || e.key === 's') {
+        socket.emit('move', { direction: 'down', amount });
+      } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+        socket.emit('move', { direction: 'left', amount });
+      } else if (e.key === 'ArrowRight' || e.key === 'd') {
+        socket.emit('move', { direction: 'right', amount });
+      }
+    });
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      // draw collectibles
+      Object.values(collectibles).forEach(c => {
+        ctx.fillStyle = 'gold';
+        ctx.fillRect(c.x, c.y, 10, 10);
+      });
+      // draw players
+      if (me) {
+        ctx.fillStyle = 'blue';
+        ctx.fillRect(me.x, me.y, 12, 12);
+        ctx.fillStyle = 'black';
+        ctx.fillText(`You (${me.score})`, me.x, me.y - 6);
+      }
+      Object.values(otherPlayers).forEach(p => {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(p.x, p.y, 12, 12);
+        ctx.fillStyle = 'black';
+        ctx.fillText(`${p.id.slice(0,4)} (${p.score})`, p.x, p.y - 6);
+      });
+    }
+  </script>
+</body>
 </html>
+
