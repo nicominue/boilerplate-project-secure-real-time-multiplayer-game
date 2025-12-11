@@ -11,10 +11,15 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-app.use(helmet.noSniff());
-app.use(helmet.xssFilter());    
-app.use(helmet.noCache());
-app.use(helmet.hidePoweredBy());      
+app.use(helmet({
+  "X-Content-Type-Options": "noSniff",
+  "X-XSS-Protection": 0,
+  noCache : true,
+}));
+// app.use(helmet.noSniff());
+// app.use(helmet.xssFilter());    
+// app.use(helmet.noCache());
+// app.use(helmet.hidePoweredBy());      
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'PHP 7.4.3');
   next();
