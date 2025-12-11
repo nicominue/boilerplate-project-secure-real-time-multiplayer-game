@@ -9,33 +9,28 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-
+app.use(helmet.noSniff());
+app.use(helmet.xssFilter());    
+app.use(helmet.noCache());
 app.use(helmet.hidePoweredBy());      
-app.use(helmet.noSniff());            
-app.use(helmet.xssFilter());          // X-XSS-Protection
-
-
-
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'PHP 7.4.3');
   next();
 });
-
-
-app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
-  next();
-});
-
-
 app.use('/public', express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, filepath) => {
+  setHeaders: (res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
   }
 }));
+
+
+// app.use((req, res, next) => {
+//   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+//   res.setHeader('Pragma', 'no-cache');
+//   res.setHeader('Expires', '0');
+//   res.setHeader('Surrogate-Control', 'no-store');
+//   next();
+// });
 
 
 app.get('/', (req, res) => {
