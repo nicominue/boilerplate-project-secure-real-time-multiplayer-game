@@ -3,7 +3,9 @@ const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
 const helmet = require('helmet');
+const bodyParser = require("body-parser");
 const path = require('path');
+const cors = require("cors")
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +25,10 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(cors({ origin: "*" }));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
